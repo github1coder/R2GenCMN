@@ -1,4 +1,5 @@
-import argparse
+import argparse  # 输入参数存入字典
+import os
 
 import numpy as np
 import torch
@@ -31,7 +32,8 @@ def parse_agrs():
 
     # Model settings (for visual extractor)
     parser.add_argument('--visual_extractor', type=str, default='resnet101', help='the visual extractor to be used.')
-    parser.add_argument('--visual_extractor_pretrained', type=bool, default=True, help='whether to load the pretrained visual extractor')
+    parser.add_argument('--visual_extractor_pretrained', type=bool, default=True,
+                        help='whether to load the pretrained visual extractor')
 
     # Model settings (for Transformer)
     parser.add_argument('--d_model', type=int, default=512, help='the dimension of Transformer.')
@@ -49,11 +51,12 @@ def parse_agrs():
 
     # for Cross-modal Memory
     parser.add_argument('--topk', type=int, default=32, help='the number of k.')
-    parser.add_argument('--cmm_size', type=int, default=2048, help='the numebr of cmm size.')
+    parser.add_argument('--cmm_size', type=int, default=2048, help='the number of cmm size.')
     parser.add_argument('--cmm_dim', type=int, default=512, help='the dimension of cmm dimension.')
 
     # Sample related
-    parser.add_argument('--sample_method', type=str, default='beam_search', help='the sample methods to sample a report.')
+    parser.add_argument('--sample_method', type=str, default='beam_search',
+                        help='the sample methods to sample a report.')
     parser.add_argument('--beam_size', type=int, default=3, help='the beam size when beam searching.')
     parser.add_argument('--temperature', type=float, default=1.0, help='the temperature when sampling.')
     parser.add_argument('--sample_n', type=int, default=1, help='the sample number per image.')
@@ -66,18 +69,20 @@ def parse_agrs():
     parser.add_argument('--n_gpu', type=int, default=1, help='the number of gpus to be used.')
     parser.add_argument('--epochs', type=int, default=100, help='the number of training epochs.')
     parser.add_argument('--save_dir', type=str, default='results/iu_xray', help='the patch to save the models.')
-    parser.add_argument('--record_dir', type=str, default='records/', help='the patch to save the results of experiments.')
+    parser.add_argument('--record_dir', type=str, default='records/',
+                        help='the patch to save the results of experiments.')
     parser.add_argument('--log_period', type=int, default=1000, help='the logging interval (in batches).')
     parser.add_argument('--save_period', type=int, default=1, help='the saving period (in epochs).')
-    parser.add_argument('--monitor_mode', type=str, default='max', choices=['min', 'max'], help='whether to max or min the metric.')
+    parser.add_argument('--monitor_mode', type=str, default='max', choices=['min', 'max'],
+                        help='whether to max or min the metric.')
     parser.add_argument('--monitor_metric', type=str, default='BLEU_4', help='the metric to be monitored.')
     parser.add_argument('--early_stop', type=int, default=50, help='the patience of training.')
 
     # Optimization
     parser.add_argument('--optim', type=str, default='Adam', help='the type of the optimizer.')
-    parser.add_argument('--lr_ve', type=float, default=5e-5, help='the learning rate for the visual extractor.')
+    parser.add_argument('--lr_ve', type=float, default=5e-5, help='the learning  rate for the visual extractor.')
     parser.add_argument('--lr_ed', type=float, default=7e-4, help='the learning rate for the remaining parameters.')
-    parser.add_argument('--weight_decay', type=float, default=5e-5, help='the weight decay.')
+    parser.add_argument('--weight_decay', type=float, default=5e-5, help='the weight of decay.')
     parser.add_argument('--adam_betas', type=tuple, default=(0.9, 0.98), help='the weight decay.')
     parser.add_argument('--adam_eps', type=float, default=1e-9, help='the weight decay.')
     parser.add_argument('--amsgrad', type=bool, default=True, help='.')
@@ -98,6 +103,7 @@ def parse_agrs():
 
 
 def main():
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # ???
     # parse arguments
     args = parse_agrs()
 
@@ -108,7 +114,7 @@ def main():
     np.random.seed(args.seed)
 
     # create tokenizer
-    tokenizer = Tokenizer(args)
+    tokenizer = Tokenizer(args)  # 词表，将报告中的词按照出现频率排序成一个数组
 
     # create data loader
     train_dataloader = R2DataLoader(args, tokenizer, split='train', shuffle=True)
@@ -119,15 +125,16 @@ def main():
     model = BaseCMNModel(args, tokenizer)
 
     # get function handles of loss and metrics
-    criterion = compute_loss
-    metrics = compute_scores
+    criterion = compute_loss  # 损失函数
+    metrics = compute_scores  # 评价指标
 
     # build optimizer, learning rate scheduler
-    optimizer = build_optimizer(args, model)
-    lr_scheduler = build_lr_scheduler(args, optimizer)
+    optimizer = build_optimizer(args, model)  # 优化器
+    lr_scheduler = build_lr_scheduler(args, optimizer)  #根据epoch训练次数来调整学习率
 
     # build trainer and start to train
-    trainer = Trainer(model, criterion, metrics, optimizer, args, lr_scheduler, train_dataloader, val_dataloader, test_dataloader)
+    trainer = Trainer(model, criterion, metrics, optimizer, args, lr_scheduler, train_dataloader, val_dataloader,
+                      test_dataloader)
     trainer.train()
 
 

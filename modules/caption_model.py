@@ -201,6 +201,8 @@ class CaptionModel(nn.Module):
         done_beams = [sum(_, []) for _ in done_beams_table]
         return done_beams
 
+
+    # 应该是不用的
     def old_beam_search(self, init_state, init_logprobs, *args, **kwargs):
 
         # function computes the similarity score to be augmented

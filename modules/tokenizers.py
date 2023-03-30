@@ -3,7 +3,7 @@ import re
 from collections import Counter
 
 
-class Tokenizer(object):
+class Tokenizer(object):    ## 词表，将报告中的词按照出现频率排序成一个数组
     def __init__(self, args):
         self.ann_path = args.ann_path
         self.threshold = args.threshold
@@ -13,6 +13,7 @@ class Tokenizer(object):
         else:
             self.clean_report = self.clean_report_mimic_cxr
         self.ann = json.loads(open(self.ann_path, 'r').read())
+        self.clean_report = self.clean_report_iu_xray
         self.token2idx, self.idx2token = self.create_vocabulary()
 
     def create_vocabulary(self):

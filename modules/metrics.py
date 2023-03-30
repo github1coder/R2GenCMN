@@ -5,18 +5,18 @@ from pycocoevalcap.meteor import Meteor
 from pycocoevalcap.rouge import Rouge
 
 
-def compute_scores(gts, res):
+def compute_scores(gts, res):  # https://www.zhihu.com/question/304798594 不同评价指标
     """
     Performs the MS COCO evaluation using the Python 3 implementation (https://github.com/salaniz/pycocoevalcap)
 
     :param gts: Dictionary with the image ids and their gold captions,
-    :param res: Dictionary with the image ids ant their generated captions
+    :param res: Dictionary with the image ids and their generated captions
     :print: Evaluation score (the mean of the scores of all the instances) for each measure
     """
 
     # Set up scorers
     scorers = [
-        (Bleu(4), ["BLEU_1", "BLEU_2", "BLEU_3", "BLEU_4"]),
+        (Bleu(4), ["BLEU_1", "BLEU_2", "BLEU_3", "BLEU_4"]),  # https://www.cnblogs.com/by-dream/p/7679284.html
         (Meteor(), "METEOR"),
         (Rouge(), "ROUGE_L")
     ]
@@ -35,6 +35,7 @@ def compute_scores(gts, res):
     return eval_res
 
 
+# 没用到？
 def compute_mlc(gt, pred, label_set):
     res_mlc = {}
     avg_aucroc = 0

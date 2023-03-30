@@ -11,8 +11,8 @@ class BaseCMNModel(nn.Module):
         super(BaseCMNModel, self).__init__()
         self.args = args
         self.tokenizer = tokenizer
-        self.visual_extractor = VisualExtractor(args)
-        self.encoder_decoder = BaseCMN(args, tokenizer)
+        self.visual_extractor = VisualExtractor(args)  # 视觉提取器
+        self.encoder_decoder = BaseCMN(args, tokenizer)  # 编码器-解码器
         if args.dataset_name == 'iu_xray':
             self.forward = self.forward_iu_xray
         else:
@@ -24,8 +24,8 @@ class BaseCMNModel(nn.Module):
         return super().__str__() + '\nTrainable parameters: {}'.format(params)
 
     def forward_iu_xray(self, images, targets=None, mode='train', update_opts={}):
-        att_feats_0, fc_feats_0 = self.visual_extractor(images[:, 0])
-        att_feats_1, fc_feats_1 = self.visual_extractor(images[:, 1])
+        att_feats_0, fc_feats_0 = self.visual_extractor(images[:, 0])  # iuxray每个样本有两张图片， 此为第一张图片的特征，16个
+        att_feats_1, fc_feats_1 = self.visual_extractor(images[:, 1])  # 此为第二张图片的特征
         fc_feats = torch.cat((fc_feats_0, fc_feats_1), dim=1)
         att_feats = torch.cat((att_feats_0, att_feats_1), dim=1)
         if mode == 'train':

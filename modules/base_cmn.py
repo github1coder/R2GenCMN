@@ -68,7 +68,7 @@ class Transformer(nn.Module):
         embeddings = self.tgt_embed(tgt)
 
         # Memory querying and responding for textual features
-        dummy_memory_matrix = memory_matrix.unsqueeze(0).expand(embeddings.size(0), memory_matrix.size(0), memory_matrix.size(1))
+        dummy_memory_matrix = memory_matrix.unsqueeze(0).expand(embeddings.size(0), memory_matrix.size(0), memory_matrix.size(1))   #这个函数会沿着每个维度重复张量的元素，使得张量的形状变为(embeddings.size(0), n, d)
         responses = self.cmn(embeddings, dummy_memory_matrix, dummy_memory_matrix)
         embeddings = embeddings + responses
         # Memory querying and responding for textual features
@@ -176,8 +176,8 @@ class DecoderLayer(nn.Module):
             return self.sublayer[2](x, self.feed_forward), present
 
 
-class MultiThreadMemory(nn.Module):
-    def __init__(self, h, d_model, dropout=0.1, topk=32):
+class MultiThreadMemory(nn.Module):  #主要功能是进行多线程内存查询，返回查询结果及查询过程中产生的注意力权重。  responses = self.cmn(embeddings, dummy_memory_matrix, dummy_memory_matrix)
+    def __init__(self, h, d_model, dropout=0.1, topk=32):   #其中，d_k 代表每个头部的维度，h 代表头部数，linears 由4个全连接层组成，attn 初始化为 None，dropout 代表 dropout 层的概率，topk 代表每个头部需要保留的 topk 个值。
         super(MultiThreadMemory, self).__init__()
         assert d_model % h == 0
         self.d_k = d_model // h
@@ -187,9 +187,10 @@ class MultiThreadMemory(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
         self.topk = topk
 
-    def forward(self, query, key, value, mask=None, layer_past=None):
+    #实现了多线程内存查询的过程。具体来说，先对输入的 query、key、value 进行线性变换，并对 query、key、value 分别进行 reshape 和 transpose 操作，将其分成多个头部进行并行计算。然后将得到的结果拼接起来，并进行最终的全连接操作。如果输入中包含了 layer_past，则将 key、value 按照时间维度拼接起来，形成一个新的 present，并将其返回。否则，直接返回计算结果。
+    def forward(self, query, key, value, mask=None, layer_past=None):   #实现了存储历史查询结果的功能，通过传入 layer_past 参数，可以将之前查询结果的 key、value 保存下来，并在下一次查询时使用。
         if mask is not None:
-            mask = mask.unsqueeze(1)
+            mask = mask.unsqueeze(1)  #unsqueeze用于增加一个新的维度到一个Tensor中。例如，如果一个张量的形状为(3, 4)，调用unsqueeze(0)会将维度添加到索引0的位置，形状变为(1, 3, 4)。
         nbatches = query.size(0)
 
         if layer_past is not None and layer_past.shape[2] == key.shape[1] > 1:
@@ -330,13 +331,13 @@ class BaseCMN(AttModel):
 
         tgt_vocab = self.vocab_size + 1
 
-        self.cmn = MultiThreadMemory(args.num_heads, args.d_model, topk=args.topk)
+        self.cmn = MultiThreadMemory(args.num_heads, args.d_model, topk=args.topk)  #存储矩阵
 
         self.model = self.make_model(tgt_vocab, self.cmn)
         self.logit = nn.Linear(args.d_model, tgt_vocab)
 
-        self.memory_matrix = nn.Parameter(torch.FloatTensor(args.cmm_size, args.cmm_dim))
-        nn.init.normal_(self.memory_matrix, 0, 1 / args.cmm_dim)
+        self.memory_matrix = nn.Parameter(torch.FloatTensor(args.cmm_size, args.cmm_dim))   # 使张量可训练
+        nn.init.normal_(self.memory_matrix, 0, 1 / args.cmm_dim)   # 初始化为正态分布
 
     def init_hidden(self, bsz):
         return []

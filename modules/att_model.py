@@ -11,7 +11,7 @@ import modules.utils as utils
 from modules.caption_model import CaptionModel
 
 
-def sort_pack_padded_sequence(input, lengths):
+def sort_pack_padded_sequence(input, lengths):  # 用于对一个批次的变长序列按照长度进行排序，并对齐后打包成一个PackedSequence对象
     sorted_lengths, indices = torch.sort(lengths, descending=True)
     tmp = pack_padded_sequence(input[indices], sorted_lengths.cpu(), batch_first=True)
     inv_ix = indices.clone()
@@ -55,8 +55,12 @@ class AttModel(CaptionModel):
 
         self.embed = lambda x: x
         self.fc_embed = lambda x: x
+
+        # 如果self.use_bn为真，添加一层BatchNorm1d层；
+        # 添加一层Linear线性层，将输入的特征向量att_feat_size映射到输出向量input_encoding_size，并添加ReLU激活函数和Dropout层；
+        # 如果self.use_bn为2，再添加一层BatchNorm1d层。
         self.att_embed = nn.Sequential(*(
-                ((nn.BatchNorm1d(self.att_feat_size),) if self.use_bn else ()) +
+                ((nn.BatchNorm1d(self.att_feat_size),) if self.use_bn else ()) +  # 归一化
                 (nn.Linear(self.att_feat_size, self.input_encoding_size),
                  nn.ReLU(),
                  nn.Dropout(self.drop_prob_lm)) +

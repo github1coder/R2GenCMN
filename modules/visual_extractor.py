@@ -10,8 +10,8 @@ class VisualExtractor(nn.Module):
         self.pretrained = args.visual_extractor_pretrained
         model = getattr(models, self.visual_extractor)(pretrained=self.pretrained)
         modules = list(model.children())[:-2]
-        self.model = nn.Sequential(*modules)
-        self.avg_fnt = torch.nn.AvgPool2d(kernel_size=7, stride=1, padding=0)
+        self.model = nn.Sequential(*modules)  # 使用已有的VisualExtractor
+        self.avg_fnt = torch.nn.AvgPool2d(kernel_size=7, stride=1, padding=0)  # 二维平均池化
 
     def forward(self, images):
         patch_feats = self.model(images)
