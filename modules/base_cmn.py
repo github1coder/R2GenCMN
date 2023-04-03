@@ -34,6 +34,11 @@ def attention(query, key, value, mask=None, dropout=None):
     return torch.matmul(p_attn, value), p_attn
 
 
+#这段代码是一个实现注意力机制的函数，它接收输入的查询(query)、键值(key, value)和可选的掩码(mask)以及其他一些参数，然后返回一个经过注意力权重加权的值，以及注意力权重。具体实现步骤如下：
+#首先通过query和key计算得到注意力分数（scores），然后根据掩码将不应被考虑的位置的分数设置为负无穷，以便在进行softmax操作时被忽略。
+#接着，函数选取了得分最高的topk个位置（默认是32个），并记录了它们的索引(idx)和对应的值(selected_value)。
+#接下来，函数对得分最高的topk个位置的值进行softmax操作，得到这些位置的注意力权重（p_attn）。如果指定了dropout，它会在这里应用。
+#最后，函数使用注意力权重对topk个位置的值进行加权平均，得到最终的结果，并返回它以及注意力权重。
 def memory_querying_responding(query, key, value, mask=None, dropout=None, topk=32):
     d_k = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
@@ -68,7 +73,9 @@ class Transformer(nn.Module):
         embeddings = self.tgt_embed(tgt)
 
         # Memory querying and responding for textual features
-        dummy_memory_matrix = memory_matrix.unsqueeze(0).expand(embeddings.size(0), memory_matrix.size(0), memory_matrix.size(1))   #这个函数会沿着每个维度重复张量的元素，使得张量的形状变为(embeddings.size(0), n, d)
+        dummy_memory_matrix = memory_matrix.unsqueeze(0).expand(embeddings.size(0), memory_matrix.size(0),
+                                                                memory_matrix.size(
+                                                                    1))  # 这个函数会沿着每个维度重复张量的元素，使得张量的形状变为(embeddings.size(0), n, d)
         responses = self.cmn(embeddings, dummy_memory_matrix, dummy_memory_matrix)
         embeddings = embeddings + responses
         # Memory querying and responding for textual features
@@ -176,8 +183,10 @@ class DecoderLayer(nn.Module):
             return self.sublayer[2](x, self.feed_forward), present
 
 
-class MultiThreadMemory(nn.Module):  #主要功能是进行多线程内存查询，返回查询结果及查询过程中产生的注意力权重。  responses = self.cmn(embeddings, dummy_memory_matrix, dummy_memory_matrix)
-    def __init__(self, h, d_model, dropout=0.1, topk=32):   #其中，d_k 代表每个头部的维度，h 代表头部数，linears 由4个全连接层组成，attn 初始化为 None，dropout 代表 dropout 层的概率，topk 代表每个头部需要保留的 topk 个值。
+class MultiThreadMemory(
+    nn.Module):  # 主要功能是进行多线程内存查询，返回查询结果及查询过程中产生的注意力权重。  responses = self.cmn(embeddings, dummy_memory_matrix, dummy_memory_matrix)
+    def __init__(self, h, d_model, dropout=0.1,
+                 topk=32):  # 其中，d_k 代表每个头部的维度，h 代表头部数，linears 由4个全连接层组成，attn 初始化为 None，dropout 代表 dropout 层的概率，topk 代表每个头部需要保留的 topk 个值。
         super(MultiThreadMemory, self).__init__()
         assert d_model % h == 0
         self.d_k = d_model // h
@@ -187,10 +196,12 @@ class MultiThreadMemory(nn.Module):  #主要功能是进行多线程内存查询
         self.dropout = nn.Dropout(p=dropout)
         self.topk = topk
 
-    #实现了多线程内存查询的过程。具体来说，先对输入的 query、key、value 进行线性变换，并对 query、key、value 分别进行 reshape 和 transpose 操作，将其分成多个头部进行并行计算。然后将得到的结果拼接起来，并进行最终的全连接操作。如果输入中包含了 layer_past，则将 key、value 按照时间维度拼接起来，形成一个新的 present，并将其返回。否则，直接返回计算结果。
-    def forward(self, query, key, value, mask=None, layer_past=None):   #实现了存储历史查询结果的功能，通过传入 layer_past 参数，可以将之前查询结果的 key、value 保存下来，并在下一次查询时使用。
+    # 实现了多线程内存查询的过程。具体来说，先对输入的 query、key、value 进行线性变换，并对 query、key、value 分别进行 reshape 和 transpose 操作，将其分成多个头部进行并行计算。然后将得到的结果拼接起来，并进行最终的全连接操作。如果输入中包含了 layer_past，则将 key、value 按照时间维度拼接起来，形成一个新的 present，并将其返回。否则，直接返回计算结果。
+    def forward(self, query, key, value, mask=None,
+                layer_past=None):  # 实现了存储历史查询结果的功能，通过传入 layer_past 参数，可以将之前查询结果的 key、value 保存下来，并在下一次查询时使用。
         if mask is not None:
-            mask = mask.unsqueeze(1)  #unsqueeze用于增加一个新的维度到一个Tensor中。例如，如果一个张量的形状为(3, 4)，调用unsqueeze(0)会将维度添加到索引0的位置，形状变为(1, 3, 4)。
+            mask = mask.unsqueeze(
+                1)  # unsqueeze用于增加一个新的维度到一个Tensor中。例如，如果一个张量的形状为(3, 4)，调用unsqueeze(0)会将维度添加到索引0的位置，形状变为(1, 3, 4)。
         nbatches = query.size(0)
 
         if layer_past is not None and layer_past.shape[2] == key.shape[1] > 1:
@@ -331,13 +342,13 @@ class BaseCMN(AttModel):
 
         tgt_vocab = self.vocab_size + 1
 
-        self.cmn = MultiThreadMemory(args.num_heads, args.d_model, topk=args.topk)  #存储矩阵
+        self.cmn = MultiThreadMemory(args.num_heads, args.d_model, topk=args.topk)  # 存储矩阵
 
         self.model = self.make_model(tgt_vocab, self.cmn)
         self.logit = nn.Linear(args.d_model, tgt_vocab)
 
-        self.memory_matrix = nn.Parameter(torch.FloatTensor(args.cmm_size, args.cmm_dim))   # 使张量可训练
-        nn.init.normal_(self.memory_matrix, 0, 1 / args.cmm_dim)   # 初始化为正态分布
+        self.memory_matrix = nn.Parameter(torch.FloatTensor(args.cmm_size, args.cmm_dim))  # 使张量可训练
+        nn.init.normal_(self.memory_matrix, 0, 1 / args.cmm_dim)  # 初始化为正态分布
 
     def init_hidden(self, bsz):
         return []
@@ -353,11 +364,12 @@ class BaseCMN(AttModel):
         att_feats = pack_wrapper(self.att_embed, att_feats, att_masks)
 
         if att_masks is None:
-            att_masks = att_feats.new_ones(att_feats.shape[:2], dtype=torch.long)
+            att_masks = att_feats.new_ones(att_feats.shape[:2], dtype=torch.long)  # 用于在输入的注意力特征序列没有掩码时，创建一个全为1的掩码
 
         # Memory querying and responding for visual features
-        dummy_memory_matrix = self.memory_matrix.unsqueeze(0).expand(att_feats.size(0), self.memory_matrix.size(0), self.memory_matrix.size(1))
-        responses = self.cmn(att_feats, dummy_memory_matrix, dummy_memory_matrix)
+        dummy_memory_matrix = self.memory_matrix.unsqueeze(0).expand(att_feats.size(0), self.memory_matrix.size(0),
+                                                                     self.memory_matrix.size(1))  # 用于将记忆矩阵扩展为与输入的注意力特征序列具有相同的形状
+        responses = self.cmn(att_feats, dummy_memory_matrix, dummy_memory_matrix)  # 从存储矩阵中得到响应
         att_feats = att_feats + responses
         # Memory querying and responding for visual features
 
@@ -376,7 +388,7 @@ class BaseCMN(AttModel):
 
     def _forward(self, fc_feats, att_feats, seq, att_masks=None):
         att_feats, seq, att_masks, seq_mask = self._prepare_feature_forward(att_feats, att_masks, seq)
-        out = self.model(att_feats, seq, att_masks, seq_mask, memory_matrix=self.memory_matrix)
+        out = self.model(att_feats, seq, att_masks, seq_mask, memory_matrix=self.memory_matrix)   # encoder-decoder
         outputs = F.log_softmax(self.logit(out), dim=-1)
 
         return outputs

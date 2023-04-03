@@ -25,9 +25,9 @@ def pad_unsort_packed_sequence(input, inv_ix):
     return tmp
 
 
-def pack_wrapper(module, att_feats, att_masks):
+def pack_wrapper(module, att_feats, att_masks):  #https://zhuanlan.zhihu.com/p/342685890
     if att_masks is not None:
-        packed, inv_ix = sort_pack_padded_sequence(att_feats, att_masks.data.long().sum(1))
+        packed, inv_ix = sort_pack_padded_sequence(att_feats, att_masks.data.long().sum(1)) #用于对一个批次的变长序列按照长度进行排序，并对齐后打包成一个PackedSequence对象
         return pad_unsort_packed_sequence(PackedSequence(module(packed[0]), packed[1]), inv_ix)
     else:
         return module(att_feats)
@@ -65,6 +65,9 @@ class AttModel(CaptionModel):
                  nn.ReLU(),
                  nn.Dropout(self.drop_prob_lm)) +
                 ((nn.BatchNorm1d(self.input_encoding_size),) if self.use_bn == 2 else ())))
+        self.ctx2att = nn.Linear(self.rnn_size, self.att_hid_size)  #自己加的????
+
+
 
     def clip_att(self, att_feats, att_masks):
         # Clip the length of att_masks and att_feats to the maximum length
@@ -74,15 +77,18 @@ class AttModel(CaptionModel):
             att_masks = att_masks[:, :max_len].contiguous()
         return att_feats, att_masks
 
-    def _prepare_feature(self, fc_feats, att_feats, att_masks):
+    def _prepare_feature(self, fc_feats, att_feats, att_masks): # 用于对输入的特征进行预处理????
+# fc_feats：一个形状为(batch_size, fc_feat_size)的张量，表示输入的全连接特征向量，其中batch_size是批次大小，fc_feat_size是全连接特征向量的维度；?
+#att_feats：一个形状为(batch_size, max_seq_len, att_feat_size)的张量，表示输入的注意力特征向量，其中batch_size是批次大小，max_seq_len是批次中序列的最大长度，att_feat_size是注意力特征向量的维度；?
+#att_masks：一个形状为(batch_size, max_seq_len)的张量，表示每个序列的掩码，其中1表示该位置是有效的，0表示该位置是填充的。
         att_feats, att_masks = self.clip_att(att_feats, att_masks)
 
         # embed fc and att feats
-        fc_feats = self.fc_embed(fc_feats)
-        att_feats = pack_wrapper(self.att_embed, att_feats, att_masks)
+        fc_feats = self.fc_embed(fc_feats)  #经过全连接特征嵌入层处理后的全连接特征向量；?
+        att_feats = pack_wrapper(self.att_embed, att_feats, att_masks)  #经过注意力特征嵌入层处理后的注意力特征张量；?
 
         # Project the attention feats first to reduce memory and computation comsumptions.
-        p_att_feats = self.ctx2att(att_feats)
+        p_att_feats = self.ctx2att(att_feats)  #经过上下文向量到注意力特征向量的映射处理后的注意力特征张量；
 
         return fc_feats, att_feats, p_att_feats, att_masks
 

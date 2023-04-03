@@ -1,16 +1,15 @@
-import argparse  # 输入参数存入字典
-import os
+import argparse
 
-import numpy as np
 import torch
+# # model_best = r"C:\Users\superzzy\programme-zzy\PyCharm\R2GenCMN\results\iu_xray\model_best.pth"
+# # current_checkpoint = r"C:\Users\superzzy\programme-zzy\PyCharm\R2GenCMN\results\iu_xray\current_checkpoint.pth"
+# # model_best = torch.load(model_best, map_location=torch.device('cpu'))
+# # current_checkpoint = torch.load(current_checkpoint, map_location=torch.device('cpu'))
+from PIL import Image
+from torchvision import transforms
 
 from models.models import BaseCMNModel
-from modules.dataloaders import R2DataLoader
-from modules.loss import compute_loss
-from modules.metrics import compute_scores
-from modules.optimizers import build_optimizer, build_lr_scheduler
 from modules.tokenizers import Tokenizer
-from modules.trainer import Trainer
 
 
 def parse_agrs():
@@ -28,7 +27,7 @@ def parse_agrs():
     parser.add_argument('--max_seq_length', type=int, default=60, help='the maximum sequence length of the reports.')
     parser.add_argument('--threshold', type=int, default=3, help='the cut off frequency for the words.')
     parser.add_argument('--num_workers', type=int, default=2, help='the number of workers for dataloader.')
-    parser.add_argument('--batch_size', type=int, default=8, help='the number of samples for a batch')  #?16
+    parser.add_argument('--batch_size', type=int, default=8, help='the number of samples for a batch')  # ?16
 
     # Model settings (for visual extractor)
     parser.add_argument('--visual_extractor', type=str, default='resnet101', help='the visual extractor to be used.')
@@ -67,7 +66,7 @@ def parse_agrs():
 
     # Trainer settings
     parser.add_argument('--n_gpu', type=int, default=1, help='the number of gpus to be used.')
-    parser.add_argument('--epochs', type=int, default=100, help='the number of training epochs.') #?100
+    parser.add_argument('--epochs', type=int, default=100, help='the number of training epochs.')  # ?100
     parser.add_argument('--save_dir', type=str, default='results/iu_xray', help='the patch to save the models.')
     parser.add_argument('--record_dir', type=str, default='records/',
                         help='the patch to save the results of experiments.')
@@ -103,39 +102,26 @@ def parse_agrs():
 
 
 def main():
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # ???
-    # parse arguments
     args = parse_agrs()
-
-    # fix random seeds
-    torch.manual_seed(args.seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(args.seed)
-
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406),
+                             (0.229, 0.224, 0.225))])
+    model_best = r"C:\Users\superzzy\programme-zzy\PyCharm\R2GenCMN\results\iu_xray\model_best.pth"
+    image = r"C:\Users\superzzy\programme-zzy\PyCharm\R2GenCMN\data\iu_xray\images\CXR1_1_IM-0001\1.png"
+    image = transform(Image.open(image).convert('RGB'))
+    image = []
     # create tokenizer
     tokenizer = Tokenizer(args)  # 词表，将报告中的词按照出现频率排序成一个数组
 
-    # create data loader
-    train_dataloader = R2DataLoader(args, tokenizer, split='train', shuffle=True)
-    val_dataloader = R2DataLoader(args, tokenizer, split='val', shuffle=False)
-    test_dataloader = R2DataLoader(args, tokenizer, split='test', shuffle=False)
-
     # build model architecture
     model = BaseCMNModel(args, tokenizer)
-
-    # get function handles of loss and metrics
-    criterion = compute_loss  # 损失函数
-    metrics = compute_scores  # 评价指标
-
-    # build optimizer, learning rate scheduler
-    optimizer = build_optimizer(args, model)  # 优化器
-    lr_scheduler = build_lr_scheduler(args, optimizer)  #根据epoch训练次数来调整学习率
-
-    # build trainer and start to train
-    trainer = Trainer(model, criterion, metrics, optimizer, args, lr_scheduler, train_dataloader, val_dataloader,
-                      test_dataloader)
-    trainer.train()
+    model.load_state_dict(torch.load(model_best))
+    output, _ = model(images, mode='sample')
+    reports = model.tokenizer.decode_batch(output.cpu().numpy())
+    # ground_truths = model.tokenizer.decode_batch(reports_ids[:, 1:].cpu().numpy())
+    pass
 
 
 if __name__ == '__main__':
